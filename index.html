@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>P2P Real-Time Multiplayer Chess</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <style>
 * {
@@ -70,54 +74,17 @@ input {
   flex-direction: column;
   align-items: center;
   gap: 15px;
+  width: 100%;
+  max-width: 450px;
 }
 .turn-indicator {
   font-size: 1.2rem;
   font-weight: bold;
   color: #00ff66;
 }
-.chessboard {
-  display: grid;
-  grid-template-columns: repeat(8, 60px);
-  grid-template-rows: repeat(8, 60px);
-  border: 4px solid #333;
+#board {
+  width: 100%;
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-.square {
-  width: 60px;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2.5rem;
-  cursor: pointer;
-  user-select: none;
-  transition: background 0.1s;
-}
-.light {
-  background-color: #eee;
-  color: #111;
-}
-.dark {
-  background-color: #4b7399;
-  color: #fff;
-}
-.selected {
-  background-color: #ffaa00 !important;
-}
-.highlighted {
-  box-shadow: inset 0 0 0 4px #00ff66;
-}
-@media (max-width: 520px) {
-  .chessboard {
-    grid-template-columns: repeat(8, 40px);
-    grid-template-rows: repeat(8, 40px);
-  }
-  .square {
-    width: 40px;
-    height: 40px;
-    font-size: 1.8rem;
-  }
 }
 </style>
 </head>
@@ -140,35 +107,16 @@ input {
 
 <div class="game-container" id="game-area" style="display: none;">
   <div class="turn-indicator" id="turn-message">Waiting for connection...</div>
-  <div class="chessboard" id="board"></div>
+  <div id="board"></div>
 </div>
 
 <script>
-const PIECES = {
-  'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', 'p': '♟',
-  'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔', 'P': '♙',
-  '': ''
-};
-
-let boardState = [
-  ['r','n','b','q','k','b','n','r'],
-  ['p','p','p','p','p','p','p','p'],
-  ['','','','','','','',''],
-  ['','','','','','','',''],
-  ['','','','','','','',''],
-  ['','','','','','','',''],
-  ['P','P','P','P','P','P','P','P'],
-  ['R','N','B','Q','K','B','N','R']
-];
-
 let peer = null;
 let conn = null;
-let myColor = null; 
-let currentTurn = 'white'; 
-let selectedSquare = null;
-let possibleMoves = [];
+let myColor = null;
+let game = new Chess();
+let board = null;
 
-const boardElement = document.getElementById('board');
 const statusElement = document.getElementById('status');
 const myIdElement = document.getElementById('my-id');
 const peerInput = document.getElementById('peer-id-input');
@@ -185,15 +133,15 @@ function initPeer() {
   });
 
   peer.on('connection', (connection) => {
-    if (conn) return; 
+    if (conn) return;
     conn = connection;
-    myColor = 'white'; 
+    myColor = 'w';
     setupConnectionListeners();
     startGame();
   });
 
   peer.on('error', (err) => {
-    statusElement.textContent = "Error: " + err.type;
+    statusElement.textContent = "Network Error: " + err.type;
   });
 }
 
@@ -203,7 +151,7 @@ connectBtn.addEventListener('click', () => {
   
   statusElement.textContent = "Connecting to peer...";
   conn = peer.connect(peerId);
-  myColor = 'black'; 
+  myColor = 'b';
   setupConnectionListeners();
 });
 
@@ -213,10 +161,9 @@ function setupConnectionListeners() {
   });
 
   conn.on('data', (data) => {
-    if (data.type === 'move') {
-      boardState = data.board;
-      currentTurn = data.nextTurn;
-      renderBoard();
+    if (data.type === 'sync-fen') {
+      game.load(data.fen);
+      board.position(game.fen());
       updateTurnMessage();
     }
   });
@@ -227,126 +174,75 @@ function setupConnectionListeners() {
   });
 }
 
-function startGame() {
-  document.getElementById('setup-controls').style.display = 'none';
-  statusElement.textContent = `Connected! You are playing as ${myColor.toUpperCase()}.`;
-  gameArea.style.display = 'flex';
-  createBoardLayout();
-  renderBoard();
-  updateTurnMessage();
-}
-
-function createBoardLayout() {
-  boardElement.innerHTML = '';
-  for (let r = 0; r < 8; r++) {
-    for (let c = 0; c < 8; c++) {
-      const square = document.createElement('div');
-      const actualRow = myColor === 'black' ? 7 - r : r;
-      const actualCol = myColor === 'black' ? 7 - c : c;
-      
-      square.className = `square ${(actualRow + actualCol) % 2 === 0 ? 'light' : 'dark'}`;
-      square.dataset.row = actualRow;
-      square.dataset.col = actualCol;
-      
-      square.addEventListener('click', () => handleSquareClick(actualRow, actualCol));
-      boardElement.appendChild(square);
-    }
+function onDragStart(source, piece, position, orientation) {
+  if (game.game_over()) return false;
+  if (game.turn() !== myColor) return false;
+  if ((game.turn() === 'w' && piece.search(/^b/) !== -1) ||
+      (game.turn() === 'b' && piece.search(/^w/) !== -1)) {
+    return false;
   }
 }
 
-function renderBoard() {
-  const squares = boardElement.querySelectorAll('.square');
-  squares.forEach(square => {
-    const r = parseInt(square.dataset.row);
-    const c = parseInt(square.dataset.col);
-    const piece = boardState[r][c];
-    square.textContent = PIECES[piece] || '';
-    
-    square.classList.remove('selected', 'highlighted');
-    if (selectedSquare && selectedSquare.r === r && selectedSquare.c === c) {
-      square.classList.add('selected');
-    }
-    if (possibleMoves.some(m => m.r === r && m.c === c)) {
-      square.classList.add('highlighted');
-    }
+function onDrop(source, target) {
+  let move = game.move({
+    from: source,
+    to: target,
+    promotion: 'q'
   });
+
+  if (move === null) return 'snapback';
+
+  updateTurnMessage();
+
+  if (conn) {
+    conn.send({
+      type: 'sync-fen',
+      fen: game.fen()
+    });
+  }
+}
+
+function onSnapEnd() {
+  board.position(game.fen());
+}
+
+function startGame() {
+  document.getElementById('setup-controls').style.display = 'none';
+  statusElement.textContent = `Connected! Playing as ${myColor === 'w' ? 'WHITE' : 'BLACK'}.`;
+  gameArea.style.display = 'flex';
+
+  const boardConfig = {
+    draggable: true,
+    position: game.fen(),
+    orientation: myColor === 'w' ? 'white' : 'black',
+    onDragStart: onDragStart,
+    onDrop: onDrop,
+    onSnapEnd: onSnapEnd,
+    pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+  };
+
+  board = Chessboard('board', boardConfig);
+  updateTurnMessage();
 }
 
 function updateTurnMessage() {
-  if (currentTurn === myColor) {
+  if (game.game_over()) {
+    if (game.in_checkmate()) {
+      turnMessage.textContent = "Game Over: Checkmate!";
+      turnMessage.style.color = "#ff4444";
+    } else if (game.in_draw()) {
+      turnMessage.textContent = "Game Over: Draw!";
+      turnMessage.style.color = "#888";
+    }
+    return;
+  }
+
+  if (game.turn() === myColor) {
     turnMessage.textContent = "Your Turn!";
     turnMessage.style.color = "#00ff66";
   } else {
     turnMessage.textContent = "Opponent is thinking...";
     turnMessage.style.color = "#ffaa00";
-  }
-}
-
-function handleSquareClick(r, c) {
-  if (currentTurn !== myColor) return;
-
-  const clickedPiece = boardState[r][c];
-  const isCorrectColor = clickedPiece !== '' && (
-    (myColor === 'white' && clickedPiece === clickedPiece.toUpperCase()) ||
-    (myColor === 'black' && clickedPiece === clickedPiece.toLowerCase())
-  );
-
-  const isDestinationMove = possibleMoves.some(m => m.r === r && m.c === c);
-
-  if (isDestinationMove && selectedSquare) {
-    executeMove(selectedSquare.r, selectedSquare.c, r, c);
-  } else if (isCorrectColor) {
-    selectedSquare = { r, c };
-    generateSimpleMoves(r, c);
-    renderBoard();
-  } else {
-    selectedSquare = null;
-    possibleMoves = [];
-    renderBoard();
-  }
-}
-
-function generateSimpleMoves(r, c) {
-  possibleMoves = [];
-  
-  for (let dr = -8; dr <= 8; dr++) {
-    for (let dc = -8; dc <= 8; dc++) {
-      const targetRow = r + dr;
-      const targetCol = c + dc;
-      if (targetRow >= 0 && targetRow < 8 && targetCol >= 0 && targetCol < 8) {
-        if (targetRow !== r || targetCol !== c) {
-          const targetPiece = boardState[targetRow][targetCol];
-          const isOwnPiece = targetPiece !== '' && (
-            (myColor === 'white' && targetPiece === targetPiece.toUpperCase()) ||
-            (myColor === 'black' && targetPiece === targetPiece.toLowerCase())
-          );
-          if (!isOwnPiece) {
-            possibleMoves.push({ r: targetRow, c: targetCol });
-          }
-        }
-      }
-    }
-  }
-}
-
-function executeMove(fromR, fromC, toR, toC) {
-  const piece = boardState[fromR][fromC];
-  boardState[toR][toC] = piece;
-  boardState[fromR][fromC] = '';
-  
-  selectedSquare = null;
-  possibleMoves = [];
-  currentTurn = myColor === 'white' ? 'black' : 'white';
-  
-  renderBoard();
-  updateTurnMessage();
-
-  if (conn) {
-    conn.send({
-      type: 'move',
-      board: boardState,
-      nextTurn: currentTurn
-    });
   }
 }
 
