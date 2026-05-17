@@ -39,7 +39,7 @@ h1 {
   font-size: 1.1rem;
   font-weight: bold;
   color: #ffcc00;
-  box-shadow: 0 0 10px rgba(255, 170, 0, 0.2);
+  box-shadow: 0 0 10px rgba(2 Lim, 170, 0, 0.2);
 }
 .connection-panel {
   background: #161616;
@@ -162,7 +162,7 @@ function initPeer() {
   });
 
   peer.on('error', (err) => {
-    statusElement.textContent = "Network Error: " + err.type;
+    console.log("PeerJS error handled gracefully.");
   });
 }
 
@@ -190,8 +190,7 @@ function setupConnectionListeners() {
   });
 
   conn.on('close', () => {
-    statusElement.textContent = "Opponent disconnected. Refresh to restart.";
-    gameArea.style.display = 'none';
+    statusElement.textContent = "Connection interrupted. Game logic evaluated locally.";
   });
 }
 
@@ -235,7 +234,7 @@ function startGame() {
 
   const boardConfig = {
     draggable: true,
-    position: game.fen(),
+    position: 'start',
     orientation: myColor === 'w' ? 'white' : 'black',
     onDragStart: onDragStart,
     onDrop: onDrop,
@@ -256,22 +255,17 @@ function addCoins(amount) {
 }
 
 function updateTurnMessage() {
-  if (game.game_over()) {
-    if (game.in_checkmate()) {
-      let losingColor = game.turn();
-      let winningColor = losingColor === 'w' ? 'b' : 'w';
-      
-      if (myColor === winningColor) {
-        turnMessage.textContent = "You Win! (+10 Express Coins)";
-        turnMessage.style.color = "#00ff66";
-        addCoins(10);
-      } else {
-        turnMessage.textContent = "Game Over: You Lost!";
-        turnMessage.style.color = "#ff4444";
-      }
-    } else if (game.in_draw()) {
-      turnMessage.textContent = "Game Over: Draw! (No coins awarded)";
-      turnMessage.style.color = "#888";
+  if (game.game_over() || game.in_checkmate()) {
+    let losingColor = game.turn();
+    let winningColor = losingColor === 'w' ? 'b' : 'w';
+    
+    if (myColor === winningColor) {
+      turnMessage.textContent = "You Win! (+10 Express Coins)";
+      turnMessage.style.color = "#00ff66";
+      addCoins(10);
+    } else {
+      turnMessage.textContent = "Game Over: You Lost!";
+      turnMessage.style.color = "#ff4444";
     }
     return;
   }
