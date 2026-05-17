@@ -30,6 +30,17 @@ h1 {
   font-size: 2rem;
   letter-spacing: 1px;
 }
+.wallet-panel {
+  background: #111;
+  border: 1px solid #ffaa00;
+  padding: 10px 20px;
+  border-radius: 20px;
+  margin-bottom: 15px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #ffcc00;
+  box-shadow: 0 0 10px rgba(255, 170, 0, 0.2);
+}
 .connection-panel {
   background: #161616;
   border: 1px solid #333;
@@ -92,6 +103,10 @@ input {
 
 <h1>P2P MULTIPLAYER CHESS</h1>
 
+<div class="wallet-panel">
+  🪙 Express Coins: <span id="coin-balance">0</span>
+</div>
+
 <div class="connection-panel">
   <div class="status-text" id="status">Initializing network engine...</div>
   <div id="setup-controls">
@@ -116,6 +131,9 @@ let conn = null;
 let myColor = null;
 let game = new Chess();
 let board = null;
+let coinsAwardedForThisGame = false;
+
+let expressCoins = parseInt(localStorage.getItem('expressCoins')) || 0;
 
 const statusElement = document.getElementById('status');
 const myIdElement = document.getElementById('my-id');
@@ -123,6 +141,9 @@ const peerInput = document.getElementById('peer-id-input');
 const connectBtn = document.getElementById('connect-btn');
 const gameArea = document.getElementById('game-area');
 const turnMessage = document.getElementById('turn-message');
+const coinBalanceElement = document.getElementById('coin-balance');
+
+coinBalanceElement.textContent = expressCoins;
 
 function initPeer() {
   peer = new Peer();
@@ -210,6 +231,7 @@ function startGame() {
   document.getElementById('setup-controls').style.display = 'none';
   statusElement.textContent = `Connected! Playing as ${myColor === 'w' ? 'WHITE' : 'BLACK'}.`;
   gameArea.style.display = 'flex';
+  coinsAwardedForThisGame = false;
 
   const boardConfig = {
     draggable: true,
@@ -225,13 +247,30 @@ function startGame() {
   updateTurnMessage();
 }
 
+function addCoins(amount) {
+  if (coinsAwardedForThisGame) return;
+  coinsAwardedForThisGame = true;
+  expressCoins += amount;
+  localStorage.setItem('expressCoins', expressCoins);
+  coinBalanceElement.textContent = expressCoins;
+}
+
 function updateTurnMessage() {
   if (game.game_over()) {
     if (game.in_checkmate()) {
-      turnMessage.textContent = "Game Over: Checkmate!";
-      turnMessage.style.color = "#ff4444";
+      let losingColor = game.turn();
+      let winningColor = losingColor === 'w' ? 'b' : 'w';
+      
+      if (myColor === winningColor) {
+        turnMessage.textContent = "You Win! (+10 Express Coins)";
+        turnMessage.style.color = "#00ff66";
+        addCoins(10);
+      } else {
+        turnMessage.textContent = "Game Over: You Lost!";
+        turnMessage.style.color = "#ff4444";
+      }
     } else if (game.in_draw()) {
-      turnMessage.textContent = "Game Over: Draw!";
+      turnMessage.textContent = "Game Over: Draw! (No coins awarded)";
       turnMessage.style.color = "#888";
     }
     return;
