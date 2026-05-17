@@ -29,6 +29,7 @@ h1 {
   margin-bottom: 15px;
   font-size: 2rem;
   letter-spacing: 1px;
+  text-align: center;
 }
 .wallet-panel {
   background: #111;
@@ -39,7 +40,7 @@ h1 {
   font-size: 1.1rem;
   font-weight: bold;
   color: #ffcc00;
-  box-shadow: 0 0 10px rgba(2 Lim, 170, 0, 0.2);
+  box-shadow: 0 0 10px rgba(255, 170, 0, 0.2);
 }
 .connection-panel {
   background: #161616;
@@ -92,10 +93,16 @@ input {
   font-size: 1.2rem;
   font-weight: bold;
   color: #00ff66;
+  text-align: center;
 }
 #board {
   width: 100%;
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+/* Force coordinates layout to obey orientation rules */
+.notation-322f9 {
+  color: #ffaa00 !important;
+  font-weight: bold;
 }
 </style>
 </head>
@@ -128,13 +135,12 @@ input {
 <script>
 let peer = null;
 let conn = null;
-let myColor = null;
+let myColor = 'w'; 
 let game = new Chess();
 let board = null;
 let coinsAwardedForThisGame = false;
 
 let expressCoins = parseInt(localStorage.getItem('expressCoins')) || 0;
-
 const statusElement = document.getElementById('status');
 const myIdElement = document.getElementById('my-id');
 const peerInput = document.getElementById('peer-id-input');
@@ -162,7 +168,7 @@ function initPeer() {
   });
 
   peer.on('error', (err) => {
-    console.log("PeerJS error handled gracefully.");
+    console.log("PeerJS system notice handled.");
   });
 }
 
@@ -190,7 +196,7 @@ function setupConnectionListeners() {
   });
 
   conn.on('close', () => {
-    statusElement.textContent = "Connection interrupted. Game logic evaluated locally.";
+    statusElement.textContent = "Opponent disconnected. Evaluating endgame locally.";
   });
 }
 
@@ -239,10 +245,17 @@ function startGame() {
     onDragStart: onDragStart,
     onDrop: onDrop,
     onSnapEnd: onSnapEnd,
+    showNotation: true,
     pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
   };
 
   board = Chessboard('board', boardConfig);
+  
+  // Re-correct internal sizing calculations for mobile screens
+  setTimeout(() => {
+    board.resize();
+  }, 300);
+
   updateTurnMessage();
 }
 
@@ -255,12 +268,12 @@ function addCoins(amount) {
 }
 
 function updateTurnMessage() {
-  if (game.game_over() || game.in_checkmate()) {
+  if (game.in_checkmate() || game.game_over()) {
     let losingColor = game.turn();
     let winningColor = losingColor === 'w' ? 'b' : 'w';
     
     if (myColor === winningColor) {
-      turnMessage.textContent = "You Win! (+10 Express Coins)";
+      turnMessage.textContent = "🏆 You Win! (+10 Express Coins)";
       turnMessage.style.color = "#00ff66";
       addCoins(10);
     } else {
