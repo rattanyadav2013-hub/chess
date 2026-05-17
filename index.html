@@ -1,9 +1,10 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Real-Time Economic Clock</title>
+<title>P2P Real-Time Multiplayer Chess</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
 <style>
 * {
   box-sizing: border-box;
@@ -11,227 +12,345 @@
   padding: 0;
 }
 body {
-  background-color: #000;
+  background-color: #0c0c0c;
   color: #fff;
   font-family: monospace;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   padding: 20px;
 }
-header {
-  text-align: center;
-  margin-bottom: 30px;
-  border-bottom: 2px solid #333;
-  padding-bottom: 20px;
-}
 h1 {
-  color: #de1f1f;
-  font-size: 2.5rem;
-  text-shadow: 0 0 10px rgba(222, 31, 31, 0.5);
-}
-.grid-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-  gap: 20px;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-.clock-card {
-  background: #111;
-  border: 1px solid #333;
-  border-radius: 4px;
-  padding: 15px;
-  text-align: center;
-  box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
-}
-.card-title {
-  font-size: 0.9rem;
-  color: #888;
-  text-transform: uppercase;
-  margin-bottom: 10px;
+  color: #ffaa00;
+  margin-bottom: 15px;
+  font-size: 2rem;
   letter-spacing: 1px;
 }
-.card-value {
-  font-size: 1.4rem;
+.connection-panel {
+  background: #161616;
+  border: 1px solid #333;
+  padding: 15px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  width: 100%;
+  max-width: 480px;
+  text-align: center;
+}
+.status-text {
+  color: #888;
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+}
+.btn {
+  background: #ffaa00;
+  color: #000;
+  border: none;
+  padding: 8px 15px;
   font-weight: bold;
-  color: #00ff00;
-  text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
-  white-space: nowrap;
+  cursor: pointer;
+  font-family: monospace;
+  border-radius: 4px;
+  margin: 5px;
 }
-.debt .card-value {
-  color: #ff3333;
-  text-shadow: 0 0 5px rgba(255, 51, 51, 0.3);
+.btn:hover {
+  background: #ffcc00;
 }
-.citizen .card-value {
-  color: #33b5e5;
-  text-shadow: 0 0 5px rgba(51, 181, 229, 0.3);
+input {
+  background: #222;
+  border: 1px solid #444;
+  color: #fff;
+  padding: 7px;
+  font-family: monospace;
+  border-radius: 4px;
+  width: 180px;
+  text-align: center;
 }
-.source-tag {
-  font-size: 0.7rem;
-  color: #555;
-  margin-top: 5px;
-  display: block;
+.game-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+.turn-indicator {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #00ff66;
+}
+.chessboard {
+  display: grid;
+  grid-template-columns: repeat(8, 60px);
+  grid-template-rows: repeat(8, 60px);
+  border: 4px solid #333;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.square {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+.light {
+  background-color: #eee;
+  color: #111;
+}
+.dark {
+  background-color: #4b7399;
+  color: #fff;
+}
+.selected {
+  background-color: #ffaa00 !important;
+}
+.highlighted {
+  box-shadow: inset 0 0 0 4px #00ff66;
+}
+@media (max-width: 520px) {
+  .chessboard {
+    grid-template-columns: repeat(8, 40px);
+    grid-template-rows: repeat(8, 40px);
+  }
+  .square {
+    width: 40px;
+    height: 40px;
+    font-size: 1.8rem;
+  }
 }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>NATIONAL & GLOBAL ECONOMIC CLOCK</h1>
-</header>
+<h1>P2P MULTIPLAYER CHESS</h1>
 
-<main class="grid-container">
-  <div class="clock-card debt">
-    <div class="card-title">US National Debt</div>
-    <div class="card-value" id="national-debt">Loading API...</div>
-    <span class="source-tag" id="debt-date">Source: U.S. Treasury API</span>
+<div class="connection-panel">
+  <div class="status-text" id="status">Initializing network engine...</div>
+  <div id="setup-controls">
+    <div style="margin-bottom: 10px;">
+      <span>Your Connection ID: </span>
+      <b id="my-id" style="color: #ffaa00;">...</b>
+    </div>
+    <hr style="border-color: #222; margin: 10px 0;">
+    <input type="text" id="peer-id-input" placeholder="Enter Friend's ID">
+    <button class="btn" id="connect-btn">Connect & Play</button>
   </div>
+</div>
 
-  <div class="clock-card citizen">
-    <div class="card-title">US Population</div>
-    <div class="card-value" id="population">0</div>
-    <span class="source-tag">Source: Census Estimate</span>
-  </div>
-
-  <div class="clock-card debt">
-    <div class="card-title">US Debt Per Citizen</div>
-    <div class="card-value" id="debt-per-citizen">$0</div>
-    <span class="source-tag">Calculated Real-Time</span>
-  </div>
-
-  <div class="clock-card">
-    <div class="card-title">US Gross Domestic Product</div>
-    <div class="card-value" id="gdp">$0</div>
-    <span class="source-tag">Source: BEA Estimate</span>
-  </div>
-
-  <div class="clock-card">
-    <div class="card-title">World Gross Domestic Product</div>
-    <div class="card-value" id="world-gdp">Loading API...</div>
-    <span class="source-tag" id="world-gdp-date">Source: World Bank API</span>
-  </div>
-
-  <div class="clock-card">
-    <div class="card-title">India Gross Domestic Product</div>
-    <div class="card-value" id="india-gdp">Loading API...</div>
-    <span class="source-tag" id="india-gdp-date">Source: World Bank API</span>
-  </div>
-</main>
+<div class="game-container" id="game-area" style="display: none;">
+  <div class="turn-indicator" id="turn-message">Waiting for connection...</div>
+  <div class="chessboard" id="board"></div>
+</div>
 
 <script>
-const CONFIG = {
-  debt: {
-    baseValue: 38950000000000,
-    ratePerSecond: 85550,
-    baseTime: Date.now()
-  },
-  population: {
-    baseValue: 336200000,
-    ratePerSecond: 0.05,
-    baseTime: new Date("2026-01-01T00:00:00Z").getTime()
-  },
-  gdp: {
-    baseValue: 27500000000000,
-    ratePerSecond: 45000,
-    baseTime: new Date("2026-01-01T00:00:00Z").getTime()
-  },
-  worldGdp: {
-    baseValue: 110000000000000,
-    ratePerSecond: 185000,
-    baseTime: new Date("2026-01-01T00:00:00Z").getTime()
-  },
-  indiaGdp: {
-    baseValue: 4150000000000,
-    ratePerSecond: 9200,
-    baseTime: new Date("2026-01-01T00:00:00Z").getTime()
-  }
+const PIECES = {
+  'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', 'p': '♟',
+  'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔', 'P': '♙',
+  '': ''
 };
 
-function formatCurrency(value) {
-  return "$" + Math.floor(value).toLocaleString('en-US');
+let boardState = [
+  ['r','n','b','q','k','b','n','r'],
+  ['p','p','p','p','p','p','p','p'],
+  ['','','','','','','',''],
+  ['','','','','','','',''],
+  ['','','','','','','',''],
+  ['','','','','','','',''],
+  ['P','P','P','P','P','P','P','P'],
+  ['R','N','B','Q','K','B','N','R']
+];
+
+let peer = null;
+let conn = null;
+let myColor = null; 
+let currentTurn = 'white'; 
+let selectedSquare = null;
+let possibleMoves = [];
+
+const boardElement = document.getElementById('board');
+const statusElement = document.getElementById('status');
+const myIdElement = document.getElementById('my-id');
+const peerInput = document.getElementById('peer-id-input');
+const connectBtn = document.getElementById('connect-btn');
+const gameArea = document.getElementById('game-area');
+const turnMessage = document.getElementById('turn-message');
+
+function initPeer() {
+  peer = new Peer();
+
+  peer.on('open', (id) => {
+    myIdElement.textContent = id;
+    statusElement.textContent = "Share your ID with a friend or enter theirs below.";
+  });
+
+  peer.on('connection', (connection) => {
+    if (conn) return; 
+    conn = connection;
+    myColor = 'white'; 
+    setupConnectionListeners();
+    startGame();
+  });
+
+  peer.on('error', (err) => {
+    statusElement.textContent = "Error: " + err.type;
+  });
 }
 
-function formatNumber(value) {
-  return Math.floor(value).toLocaleString('en-US');
+connectBtn.addEventListener('click', () => {
+  const peerId = peerInput.value.trim();
+  if (!peerId) return;
+  
+  statusElement.textContent = "Connecting to peer...";
+  conn = peer.connect(peerId);
+  myColor = 'black'; 
+  setupConnectionListeners();
+});
+
+function setupConnectionListeners() {
+  conn.on('open', () => {
+    startGame();
+  });
+
+  conn.on('data', (data) => {
+    if (data.type === 'move') {
+      boardState = data.board;
+      currentTurn = data.nextTurn;
+      renderBoard();
+      updateTurnMessage();
+    }
+  });
+
+  conn.on('close', () => {
+    statusElement.textContent = "Opponent disconnected. Refresh to restart.";
+    gameArea.style.display = 'none';
+  });
 }
 
-async function fetchAllData() {
-  try {
-    const response = await fetch('https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?sort=-record_date&page[size]=1');
-    const json = await response.json();
-    if (json && json.data && json.data[0]) {
-      const officialRecord = json.data[0];
-      const officialDebtAmt = parseFloat(officialRecord.tot_pub_debt_out_amt);
-      const recordDateStr = officialRecord.record_date;
-      const recordTimeMs = new Date(recordDateStr + "T00:00:00Z").getTime();
-
-      CONFIG.debt.baseValue = officialDebtAmt;
-      CONFIG.debt.baseTime = recordTimeMs;
-      document.getElementById('debt-date').textContent = "Official API Baseline: " + recordDateStr;
-    }
-  } catch (e) {}
-
-  try {
-    const response = await fetch('https://api.worldbank.org/v2/country/WLD/indicator/NY.GDP.MKTP.CD?format=json&per_page=5');
-    const json = await response.json();
-    if (json && json[1]) {
-      const records = json[1].filter(entry => entry.value !== null);
-      if (records.length > 0) {
-        CONFIG.worldGdp.baseValue = records[0].value;
-        CONFIG.worldGdp.baseTime = new Date(records[0].date + "-01-01T00:00:00Z").getTime();
-        document.getElementById('world-gdp-date').textContent = "Official API Year: " + records[0].date;
-      }
-    }
-  } catch (e) {}
-
-  try {
-    const response = await fetch('https://api.worldbank.org/v2/country/IN/indicator/NY.GDP.MKTP.CD?format=json&per_page=5');
-    const json = await response.json();
-    if (json && json[1]) {
-      const records = json[1].filter(entry => entry.value !== null);
-      if (records.length > 0) {
-        CONFIG.indiaGdp.baseValue = records[0].value;
-        CONFIG.indiaGdp.baseTime = new Date(records[0].date + "-01-01T00:00:00Z").getTime();
-        document.getElementById('india-gdp-date').textContent = "Official API Year: " + records[0].date;
-      }
-    }
-  } catch (e) {}
-
-  updateClocks();
+function startGame() {
+  document.getElementById('setup-controls').style.display = 'none';
+  statusElement.textContent = `Connected! You are playing as ${myColor.toUpperCase()}.`;
+  gameArea.style.display = 'flex';
+  createBoardLayout();
+  renderBoard();
+  updateTurnMessage();
 }
 
-function updateClocks() {
-  const now = Date.now();
-
-  const debtElapsedSec = (now - CONFIG.debt.baseTime) / 1000;
-  let currentDebt = CONFIG.debt.baseValue;
-  if (debtElapsedSec > 0) {
-    currentDebt += (debtElapsedSec * CONFIG.debt.ratePerSecond);
+function createBoardLayout() {
+  boardElement.innerHTML = '';
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const square = document.createElement('div');
+      const actualRow = myColor === 'black' ? 7 - r : r;
+      const actualCol = myColor === 'black' ? 7 - c : c;
+      
+      square.className = `square ${(actualRow + actualCol) % 2 === 0 ? 'light' : 'dark'}`;
+      square.dataset.row = actualRow;
+      square.dataset.col = actualCol;
+      
+      square.addEventListener('click', () => handleSquareClick(actualRow, actualCol));
+      boardElement.appendChild(square);
+    }
   }
-
-  const popElapsedSec = (now - CONFIG.population.baseTime) / 1000;
-  const currentPop = CONFIG.population.baseValue + (popElapsedSec * CONFIG.population.ratePerSecond);
-
-  const gdpElapsedSec = (now - CONFIG.gdp.baseTime) / 1000;
-  const currentGdp = CONFIG.gdp.baseValue + (gdpElapsedSec * CONFIG.gdp.ratePerSecond);
-
-  const worldGdpElapsedSec = (now - CONFIG.worldGdp.baseTime) / 1000;
-  const currentWorldGdp = CONFIG.worldGdp.baseValue + (worldGdpElapsedSec * CONFIG.worldGdp.ratePerSecond);
-
-  const indiaGdpElapsedSec = (now - CONFIG.indiaGdp.baseTime) / 1000;
-  const currentIndiaGdp = CONFIG.indiaGdp.baseValue + (indiaGdpElapsedSec * CONFIG.indiaGdp.ratePerSecond);
-
-  const debtPerCitizen = currentDebt / currentPop;
-
-  document.getElementById('national-debt').textContent = formatCurrency(currentDebt);
-  document.getElementById('population').textContent = formatNumber(currentPop);
-  document.getElementById('gdp').textContent = formatCurrency(currentGdp);
-  document.getElementById('debt-per-citizen').textContent = formatCurrency(debtPerCitizen);
-  document.getElementById('world-gdp').textContent = formatCurrency(currentWorldGdp);
-  document.getElementById('india-gdp').textContent = formatCurrency(currentIndiaGdp);
-
-  requestAnimationFrame(updateClocks);
 }
 
-window.addEventListener('DOMContentLoaded', fetchAllData);
+function renderBoard() {
+  const squares = boardElement.querySelectorAll('.square');
+  squares.forEach(square => {
+    const r = parseInt(square.dataset.row);
+    const c = parseInt(square.dataset.col);
+    const piece = boardState[r][c];
+    square.textContent = PIECES[piece] || '';
+    
+    square.classList.remove('selected', 'highlighted');
+    if (selectedSquare && selectedSquare.r === r && selectedSquare.c === c) {
+      square.classList.add('selected');
+    }
+    if (possibleMoves.some(m => m.r === r && m.c === c)) {
+      square.classList.add('highlighted');
+    }
+  });
+}
+
+function updateTurnMessage() {
+  if (currentTurn === myColor) {
+    turnMessage.textContent = "Your Turn!";
+    turnMessage.style.color = "#00ff66";
+  } else {
+    turnMessage.textContent = "Opponent is thinking...";
+    turnMessage.style.color = "#ffaa00";
+  }
+}
+
+function handleSquareClick(r, c) {
+  if (currentTurn !== myColor) return;
+
+  const clickedPiece = boardState[r][c];
+  const isCorrectColor = clickedPiece !== '' && (
+    (myColor === 'white' && clickedPiece === clickedPiece.toUpperCase()) ||
+    (myColor === 'black' && clickedPiece === clickedPiece.toLowerCase())
+  );
+
+  const isDestinationMove = possibleMoves.some(m => m.r === r && m.c === c);
+
+  if (isDestinationMove && selectedSquare) {
+    executeMove(selectedSquare.r, selectedSquare.c, r, c);
+  } else if (isCorrectColor) {
+    selectedSquare = { r, c };
+    generateSimpleMoves(r, c);
+    renderBoard();
+  } else {
+    selectedSquare = null;
+    possibleMoves = [];
+    renderBoard();
+  }
+}
+
+function generateSimpleMoves(r, c) {
+  possibleMoves = [];
+  
+  for (let dr = -8; dr <= 8; dr++) {
+    for (let dc = -8; dc <= 8; dc++) {
+      const targetRow = r + dr;
+      const targetCol = c + dc;
+      if (targetRow >= 0 && targetRow < 8 && targetCol >= 0 && targetCol < 8) {
+        if (targetRow !== r || targetCol !== c) {
+          const targetPiece = boardState[targetRow][targetCol];
+          const isOwnPiece = targetPiece !== '' && (
+            (myColor === 'white' && targetPiece === targetPiece.toUpperCase()) ||
+            (myColor === 'black' && targetPiece === targetPiece.toLowerCase())
+          );
+          if (!isOwnPiece) {
+            possibleMoves.push({ r: targetRow, c: targetCol });
+          }
+        }
+      }
+    }
+  }
+}
+
+function executeMove(fromR, fromC, toR, toC) {
+  const piece = boardState[fromR][fromC];
+  boardState[toR][toC] = piece;
+  boardState[fromR][fromC] = '';
+  
+  selectedSquare = null;
+  possibleMoves = [];
+  currentTurn = myColor === 'white' ? 'black' : 'white';
+  
+  renderBoard();
+  updateTurnMessage();
+
+  if (conn) {
+    conn.send({
+      type: 'move',
+      board: boardState,
+      nextTurn: currentTurn
+    });
+  }
+}
+
+window.addEventListener('DOMContentLoaded', initPeer);
 </script>
 </body>
 </html>
