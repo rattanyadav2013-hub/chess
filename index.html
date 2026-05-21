@@ -1,298 +1,119 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>P2P Real-Time Multiplayer Chess</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
-<style>
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-body {
-  background-color: #0c0c0c;
-  color: #fff;
-  font-family: monospace;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px;
-}
-h1 {
-  color: #ffaa00;
-  margin-bottom: 15px;
-  font-size: 2rem;
-  letter-spacing: 1px;
-  text-align: center;
-}
-.wallet-panel {
-  background: #111;
-  border: 1px solid #ffaa00;
-  padding: 10px 20px;
-  border-radius: 20px;
-  margin-bottom: 15px;
-  font-size: 1.1rem;
-  font-weight: bold;
-  color: #ffcc00;
-  box-shadow: 0 0 10px rgba(255, 170, 0, 0.2);
-}
-.connection-panel {
-  background: #161616;
-  border: 1px solid #333;
-  padding: 15px;
-  border-radius: 6px;
-  margin-bottom: 20px;
-  width: 100%;
-  max-width: 480px;
-  text-align: center;
-}
-.status-text {
-  color: #888;
-  margin-bottom: 10px;
-  font-size: 0.9rem;
-}
-.btn {
-  background: #ffaa00;
-  color: #000;
-  border: none;
-  padding: 8px 15px;
-  font-weight: bold;
-  cursor: pointer;
-  font-family: monospace;
-  border-radius: 4px;
-  margin: 5px;
-}
-.btn:hover {
-  background: #ffcc00;
-}
-input {
-  background: #222;
-  border: 1px solid #444;
-  color: #fff;
-  padding: 7px;
-  font-family: monospace;
-  border-radius: 4px;
-  width: 180px;
-  text-align: center;
-}
-.game-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-  width: 100%;
-  max-width: 450px;
-}
-.turn-indicator {
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: #00ff66;
-  text-align: center;
-}
-#board {
-  width: 100%;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-/* Force coordinates layout to obey orientation rules */
-.notation-322f9 {
-  color: #ffaa00 !important;
-  font-weight: bold;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Real Time Multiplayer Chess</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0d0803;
+            color: #ff9900;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+        }
+        .header-title {
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin-top: 40px;
+            text-transform: uppercase;
+        }
+        .coin-box {
+            border: 1px solid #ff9900;
+            border-radius: 20px;
+            padding: 5px 20px;
+            margin-top: 15px;
+            font-size: 16px;
+            background-color: rgba(255, 153, 0, 0.05);
+        }
+        .setup-panel {
+            border: 1px solid #332211;
+            background-color: rgba(20, 15, 10, 0.6);
+            border-radius: 8px;
+            padding: 30px;
+            margin-top: 30px;
+            width: 100%;
+            max-width: 650px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            box-sizing: border-box;
+        }
+        .instruction-text {
+            color: #aaaaaa;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .connection-id-display {
+            font-size: 14px;
+            color: #ff9900;
+            margin-bottom: 25px;
+        }
+        .connection-id-display span {
+            color: #ffcc66;
+        }
+        .input-row {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 35px;
+        }
+        .id-input {
+            background-color: #1a120b;
+            border: 1px solid #443322;
+            color: #ffffff;
+            padding: 10px 15px;
+            font-family: inherit;
+            border-radius: 4px;
+            width: 220px;
+            text-align: center;
+        }
+        .btn-connect {
+            background-color: #ffcc00;
+            border: none;
+            color: #000000;
+            font-weight: bold;
+            padding: 10px 25px;
+            font-family: inherit;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .ad-container-wrapper {
+            width: 100%;
+            max-width: 468px;
+            margin: 10px auto 0 auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
 </head>
 <body>
 
-<h1>P2P MULTIPLAYER CHESS</h1>
-
-<div class="wallet-panel">
-  🪙 Express Coins: <span id="coin-balance">0</span>
-</div>
-
-<div class="connection-panel">
-  <div class="status-text" id="status">Initializing network engine...</div>
-  <div id="setup-controls">
-    <div style="margin-bottom: 10px;">
-      <span>Your Connection ID: </span>
-      <b id="my-id" style="color: #ffaa00;">...</b>
-    </div>
-    <hr style="border-color: #222; margin: 10px 0;">
-    <input type="text" id="peer-id-input" placeholder="Enter Friend's ID">
-    <button class="btn" id="connect-btn">Connect & Play</button>
-  </div>
-</div>
-
-<div class="game-container" id="game-area" style="display: none;">
-  <div class="turn-indicator" id="turn-message">Waiting for connection...</div>
-  <div id="board"></div>
-</div>
-
-<script>
-let peer = null;
-let conn = null;
-let myColor = 'w'; 
-let game = new Chess();
-let board = null;
-let coinsAwardedForThisGame = false;
-
-let expressCoins = parseInt(localStorage.getItem('expressCoins')) || 0;
-const statusElement = document.getElementById('status');
-const myIdElement = document.getElementById('my-id');
-const peerInput = document.getElementById('peer-id-input');
-const connectBtn = document.getElementById('connect-btn');
-const gameArea = document.getElementById('game-area');
-const turnMessage = document.getElementById('turn-message');
-const coinBalanceElement = document.getElementById('coin-balance');
-
-coinBalanceElement.textContent = expressCoins;
-
-function initPeer() {
-  peer = new Peer();
-
-  peer.on('open', (id) => {
-    myIdElement.textContent = id;
-    statusElement.textContent = "Share your ID with a friend or enter theirs below.";
-  });
-
-  peer.on('connection', (connection) => {
-    if (conn) return;
-    conn = connection;
-    myColor = 'w';
-    setupConnectionListeners();
-    startGame();
-  });
-
-  peer.on('error', (err) => {
-    console.log("PeerJS system notice handled.");
-  });
-}
-
-connectBtn.addEventListener('click', () => {
-  const peerId = peerInput.value.trim();
-  if (!peerId) return;
-  
-  statusElement.textContent = "Connecting to peer...";
-  conn = peer.connect(peerId);
-  myColor = 'b';
-  setupConnectionListeners();
-});
-
-function setupConnectionListeners() {
-  conn.on('open', () => {
-    startGame();
-  });
-
-  conn.on('data', (data) => {
-    if (data.type === 'sync-fen') {
-      game.load(data.fen);
-      board.position(game.fen());
-      updateTurnMessage();
-    }
-  });
-
-  conn.on('close', () => {
-    statusElement.textContent = "Opponent disconnected. Evaluating endgame locally.";
-  });
-}
-
-function onDragStart(source, piece, position, orientation) {
-  if (game.game_over()) return false;
-  if (game.turn() !== myColor) return false;
-  if ((game.turn() === 'w' && piece.search(/^b/) !== -1) ||
-      (game.turn() === 'b' && piece.search(/^w/) !== -1)) {
-    return false;
-  }
-}
-
-function onDrop(source, target) {
-  let move = game.move({
-    from: source,
-    to: target,
-    promotion: 'q'
-  });
-
-  if (move === null) return 'snapback';
-
-  updateTurnMessage();
-
-  if (conn) {
-    conn.send({
-      type: 'sync-fen',
-      fen: game.fen()
-    });
-  }
-}
-
-function onSnapEnd() {
-  board.position(game.fen());
-}
-
-function startGame() {
-  document.getElementById('setup-controls').style.display = 'none';
-  statusElement.textContent = `Connected! Playing as ${myColor === 'w' ? 'WHITE' : 'BLACK'}.`;
-  gameArea.style.display = 'flex';
-  coinsAwardedForThisGame = false;
-
-  const boardConfig = {
-    draggable: true,
-    position: 'start',
-    orientation: myColor === 'w' ? 'white' : 'black',
-    onDragStart: onDragStart,
-    onDrop: onDrop,
-    onSnapEnd: onSnapEnd,
-    showNotation: true,
-    pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
-  };
-
-  board = Chessboard('board', boardConfig);
-  
-  // Re-correct internal sizing calculations for mobile screens
-  setTimeout(() => {
-    board.resize();
-  }, 300);
-
-  updateTurnMessage();
-}
-
-function addCoins(amount) {
-  if (coinsAwardedForThisGame) return;
-  coinsAwardedForThisGame = true;
-  expressCoins += amount;
-  localStorage.setItem('expressCoins', expressCoins);
-  coinBalanceElement.textContent = expressCoins;
-}
-
-function updateTurnMessage() {
-  if (game.in_checkmate() || game.game_over()) {
-    let losingColor = game.turn();
-    let winningColor = losingColor === 'w' ? 'b' : 'w';
+    <div class="header-title">P2P Multiplayer Chess</div>
     
-    if (myColor === winningColor) {
-      turnMessage.textContent = "🏆 You Win! (+10 Express Coins)";
-      turnMessage.style.color = "#00ff66";
-      addCoins(10);
-    } else {
-      turnMessage.textContent = "Game Over: You Lost!";
-      turnMessage.style.color = "#ff4444";
-    }
-    return;
-  }
+    <div class="coin-box">🪙 Express Coins: 10</div>
 
-  if (game.turn() === myColor) {
-    turnMessage.textContent = "Your Turn!";
-    turnMessage.style.color = "#00ff66";
-  } else {
-    turnMessage.textContent = "Opponent is thinking...";
-    turnMessage.style.color = "#ffaa00";
-  }
-}
+    <div class="setup-panel">
+        <div class="instruction-text">Share your ID with a friend or enter theirs below.</div>
+        <div class="connection-id-display">Your Connection ID: <span id="peer-id">1b06e778-c58f-4710-a34a-9ee171f475d3</span></div>
+        
+        <div class="input-row">
+            <input type="text" class="id-input" id="friend-id-input" placeholder="Enter Friend's ID">
+            <button class="btn-connect" id="connect-btn">Connect & Play</button>
+        </div>
 
-window.addEventListener('DOMContentLoaded', initPeer);
-</script>
+        <div class="ad-container-wrapper">
+            <div id="frame" style="width: 100%; margin: auto; position: relative; z-index: 99998;">
+                <iframe data-aa='2438349' src='//acceptable.a-ads.com/2438349?size=Adaptive' style='border:0; padding:0; width:100%; height:auto; overflow:hidden; display:block; margin: auto;'></iframe>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
